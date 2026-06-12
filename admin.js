@@ -65,7 +65,9 @@ function renderWish(){
 }
 function renderAnalytics(){
   const a=data.analytics||{};
-  document.getElementById('analyticsBox').innerHTML=`<div class="metric-grid"><div class="metric"><span>პროდუქტები</span><br><b>${data.products.length}</b></div><div class="metric"><span>შეკვეთები</span><br><b>${data.orders.length}</b></div><div class="metric"><span>სურვილები</span><br><b>${data.wishRequests.length}</b></div><div class="metric"><span>დაბალი ნაშთი</span><br><b>${(a.lowStock||[]).length}</b></div></div><h3>ყველაზე გაყიდვადი</h3>${table(['კოდი','სახელი','გაყიდულია'],(a.bestSellers||[]).map(x=>[esc(x.code),esc(x.name),x.sold]))}<h3>დაბალი ნაშთი</h3>${table(['კოდი','ზომა','ხელმისაწვდომი'],(a.lowStock||[]).map(x=>[esc(x.code),esc(x.size),x.available]))}`;
+  const all=(a.allStock&&a.allStock.length?a.allStock:data.stock.map(s=>({code:s.Code,size:s.Size,qty:Number(s.Qty||0),reserved:Number(s.ReservedQty||0),sold:Number(s.SoldQty||0),available:Number(s.Qty||0)-Number(s.ReservedQty||0)})));
+  const low=(a.lowStock&&a.lowStock.length?a.lowStock:all.filter(x=>Number(x.available)<=2));
+  document.getElementById('analyticsBox').innerHTML=`<div class="metric-grid"><div class="metric"><span>პროდუქტები</span><br><b>${data.products.length}</b></div><div class="metric"><span>შეკვეთები</span><br><b>${data.orders.length}</b></div><div class="metric"><span>სურვილები</span><br><b>${data.wishRequests.length}</b></div><div class="metric"><span>დაბალი ნაშთი</span><br><b>${low.length}</b></div></div><h3>სრული ნაშთი</h3>${table(['კოდი','ზომა','საწყობში','დაჯავშნილი','ხელმისაწვდომი','გაყიდული'],all.map(x=>[esc(x.code),esc(x.size),x.qty,x.reserved,x.available,x.sold]))}<h3>დაბალი ნაშთი</h3>${table(['კოდი','ზომა','ხელმისაწვდომი'],low.map(x=>[esc(x.code),esc(x.size),x.available]))}<h3>ყველაზე გაყიდვადი</h3>${table(['კოდი','სახელი','გაყიდულია'],(a.bestSellers||[]).map(x=>[esc(x.code),esc(x.name),x.sold]))}`;
 }
 function table(headers,rows){
   if(!rows.length) return '<div class="empty">ჩანაწერი ჯერ არ არის</div>';
