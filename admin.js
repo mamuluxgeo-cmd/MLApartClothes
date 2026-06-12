@@ -65,8 +65,37 @@ function renderProducts(){
   });
   document.getElementById('productsTable').innerHTML=table(['კოდი','პოზიცია','პროდუქტის სახელი','ფასი','ზომები','მართვა'],rows);
 }
+function orderItemsFor(orderId){
+  return (data.orderItems||[]).filter(i=>String(i.OrderID)===String(orderId));
+}
+function orderDetailsHtml(orderId){
+  const items=orderItemsFor(orderId);
+  if(!items.length) return '<div class="empty">ამ შეკვეთაზე ნივთები ვერ მოიძებნა</div>';
+  const total=items.reduce((sum,i)=>sum+Number(i.Total||0),0);
+  return `<div class="panel" style="margin:10px 0"><h3>ორდერის შემადგენლობა</h3>${table(['კოდი','პროდუქტი','ზომა','რაოდენობა','ფასი','ჯამი'],items.map(i=>[esc(i.Code),esc(i.NameKA),esc(i.Size),Number(i.Qty||0),money(i.Price),money(i.Total)]))}<div class="cart-total"><span>ორდერის ჯამი</span><b>${money(total)}</b></div></div>`;
+}
+function toggleOrderDetails(orderId){
+  const safeId=String(orderId).replace(/[^a-zA-Z0-9_-]/g,'_');
+  const el=document.getElementById('orderDetails_'+safeId);
+  if(el) el.hidden=!el.hidden;
+}
 function renderOrders(){
-  document.getElementById('ordersTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','დრო','ჯამი','სტატუსი'],data.orders.map(o=>[esc(o.Date),esc(o.CustomerName),esc(o.Phone),esc(o.RoomNumber),esc(o.DeliveryTime),money(o.Total),statusSelect('orders',o.OrderID,o.Status)]));
+  const rows=[];
+  (data.orders||[]).forEach(o=>{
+    const safeId=String(o.OrderID).replace(/[^a-zA-Z0-9_-]/g,'_');
+    rows.push([
+      esc(o.Date),
+      esc(o.CustomerName),
+      esc(o.Phone),
+      esc(o.RoomNumber),
+      esc(o.DeliveryTime),
+      money(o.Total),
+      `<button type="button" class="secondary" onclick="toggleOrderDetails('${o.OrderID}')">ორდერის ნახვა</button>`,
+      statusSelect('orders',o.OrderID,o.Status)
+    ]);
+    rows.push([`<div id="orderDetails_${safeId}" hidden>${orderDetailsHtml(o.OrderID)}</div>`,'','','','','','','']);
+  });
+  document.getElementById('ordersTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','დრო','ჯამი','ორდერი','სტატუსი'],rows);
 }
 function renderWish(){
   document.getElementById('wishTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','შეტყობინება','სტატუსი'],data.wishRequests.map(w=>[esc(w.Date),esc(w.CustomerName),esc(w.Phone),esc(w.RoomNumber),esc(w.Message),statusSelect('wish',w.RequestID,w.Status)]));
