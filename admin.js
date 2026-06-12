@@ -22,7 +22,9 @@ async function load(){
 
 function render(){
   const activePositions=data.positions.filter(p=>p.Status==='active');
-  document.getElementById('adminPosition').innerHTML='<option value="">აირჩიე პოზიცია</option>'+activePositions.map(p=>`<option value="${p.PositionID}">${p.NameKA}</option>`).join('');
+  const positionSelect=document.getElementById('adminPosition');
+  positionSelect.innerHTML='<option value="" selected disabled>აირჩიე პოზიცია *</option>'+activePositions.map(p=>`<option value="${p.PositionID}">${p.NameKA}</option>`).join('');
+  positionSelect.value='';
   document.getElementById('productSelect').innerHTML='<option value="">ან აირჩიე პროდუქტი</option>'+data.products.filter(p=>p.Status==='active').map(p=>`<option value="${p.Code}">${p.Code} — ${p.NameKA}</option>`).join('');
   renderPositions();
   renderProducts();
@@ -35,7 +37,7 @@ function renderPositions(){
   document.getElementById('positionsTable').innerHTML=table(['ქართული','English','Русский','სტატუსი'],data.positions.map(p=>[p.NameKA,p.NameEN,p.NameRU,p.Status]));
 }
 function renderProducts(){
-  document.getElementById('productsTable').innerHTML=table(['კოდი','პოზიცია','სახელი','ფასი','ზომები'],data.products.map(p=>{
+  document.getElementById('productsTable').innerHTML=table(['კოდი','პოზიცია','პროდუქტის სახელი','ფასი','ზომები'],data.products.map(p=>{
     const pos=data.positions.find(x=>x.PositionID===p.PositionID)||{};
     const sizes=data.stock.filter(s=>s.ProductID===p.ProductID).map(s=>`${s.Size}: ${s.Qty}`).join(', ');
     return [p.Code,pos.NameKA||'',p.NameKA,money(p.Price),sizes];
@@ -164,6 +166,7 @@ addSize();
 
 document.getElementById('productForm').onsubmit=async e=>{
   e.preventDefault();
+  if(!document.getElementById('adminPosition').value){ toast('აირჩიე პოზიცია'); return; }
   const fd=Object.fromEntries(new FormData(e.target).entries());
   const sizes=[...document.querySelectorAll('.size-input')].map(d=>({size:d.children[0].value,qty:d.children[1].value})).filter(x=>x.size&&x.qty);
   const r=await api('saveProduct',{product:{...fd,images:uploaded,sizes}},'POST');
