@@ -1,5 +1,6 @@
 const API = window.APP_CONFIG.API_URL;
 let state = { lang: 'ka', positions: [], products: [], cart: [] };
+let lightboxState = { images: [], index: 0 };
 const t = {
   ka: {
     all:'ყველა პოზიცია', add:'კალათაში დამატება', sold:'ამოიწურა', choose:'აირჩიეთ ზომა', ordered:'შეკვეთა გაიგზავნა', wish:'შეტყობინება გაიგზავნა', added:'დაემატა კალათაში', notFound:'პროდუქცია ვერ მოიძებნა',
@@ -25,6 +26,7 @@ function nameOf(obj){ const l=state.lang.toUpperCase(); return obj['Name'+l] || 
 function money(v){ return `${Number(v||0).toFixed(0)}₾`; }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); }
 function esc(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+function jsEsc(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ')}
 function driveId(url){
   if(!url) return '';
   const u=String(url).trim();
@@ -114,10 +116,10 @@ function card(p){
   const sizes=(p.sizes||[]).map(s=>`<button class="size ${s.disabled?'disabled':''}" ${s.disabled?'disabled':''} onclick="selectSize('${p.ProductID}','${esc(s.size)}',this)">${esc(s.size)}</button>`).join('');
   const imgs=(p.images&&p.images.length?p.images:[p.MainImage]).filter(Boolean);
   const main=p.MainImage || imgs[0] || '';
-  const gallery=imgs.map(url=>`<img src="${firstImage(url)}" data-alt="${imgAltAttr(url)}" data-ix="0" onerror="nextImage(this)" onclick="openLightbox('${esc(url)}')">`).join('');
+  const gallery=imgs.map((url,ix)=>`<img src="${firstImage(url)}" data-alt="${imgAltAttr(url)}" data-ix="0" onerror="nextImage(this)" onclick="openProductLightbox('${p.ProductID}',${ix})">`).join('');
   const available=(p.sizes||[]).some(s=>!s.disabled);
   return `<article class="product" data-id="${p.ProductID}">
-    <div class="photo-wrap"><img src="${firstImage(main)}" data-alt="${imgAltAttr(main)}" data-ix="0" onerror="nextImage(this)" onclick="openLightbox('${esc(main)}')"><span class="badge">${esc(p.Code)}</span></div>
+    <div class="photo-wrap"><img src="${firstImage(main)}" data-alt="${imgAltAttr(main)}" data-ix="0" onerror="nextImage(this)" onclick="openProductLightbox('${p.ProductID}',0)"><span class="badge">${esc(p.Code)}</span></div>
     <div class="p-body">
       <h3>${esc(nameOf(p))}</h3><div class="code">${p.position?esc(nameOf(p.position)):''}</div>
       <div class="price">${p.OldPrice?`<span class="old">${money(p.OldPrice)}</span>`:''}<span class="new">${money(p.Price)}</span></div>
@@ -154,12 +156,62 @@ async function submitWish(e){
   const res=await api('createWish',{request:fd},'POST');
   if(!res.ok) return toast(res.error); e.target.reset(); toast(tr('wish'));
 }
-function openLightbox(url){ const src=firstImage(url); if(!src) return; document.getElementById('lightboxImg').src=src; document.getElementById('lightboxImg').dataset.alt=imgAltAttr(url); document.getElementById('lightboxImg').dataset.ix='0'; document.getElementById('lightboxImg').onerror=function(){nextImage(this)}; document.getElementById('lightbox').classList.remove('hidden'); }
+function setLightboxImage(url){
+  const img=document.getElementById('lightboxImg');
+  const src=firstImage(url);
+  if(!src) return;
+  img.style.display='block';
+  img.src=src;
+  img.dataset.alt=imgAltAttr(url);
+  img.dataset.ix='0';
+  img.onerror=function(){nextImage(this)};
+}
+function openProductLightbox(productId,index=0){
+  const p=state.products.find(x=>x.ProductID===productId);
+  if(!p) return;
+  const imgs=(p.images&&p.images.length?p.images:[p.MainImage]).filter(Boolean);
+  if(!imgs.length) return;
+  lightboxState.images=imgs;
+  lightboxState.index=Math.max(0,Math.min(index,imgs.length-1));
+  setLightboxImage(lightboxState.images[lightboxState.index]);
+  updateLightboxButtons();
+  document.getElementById('lightbox').classList.remove('hidden');
+}
+function openLightbox(url){
+  lightboxState.images=[url].filter(Boolean);
+  lightboxState.index=0;
+  setLightboxImage(url);
+  updateLightboxButtons();
+  document.getElementById('lightbox').classList.remove('hidden');
+}
+function moveLightbox(step){
+  if(!lightboxState.images.length) return;
+  lightboxState.index=(lightboxState.index+step+lightboxState.images.length)%lightboxState.images.length;
+  setLightboxImage(lightboxState.images[lightboxState.index]);
+  updateLightboxButtons();
+}
+function updateLightboxButtons(){
+  const many=lightboxState.images.length>1;
+  const prev=document.getElementById('prevLightbox');
+  const next=document.getElementById('nextLightbox');
+  if(prev) prev.hidden=!many;
+  if(next) next.hidden=!many;
+}
+function closeLightbox(){document.getElementById('lightbox').classList.add('hidden')}
 
 document.getElementById('searchInput').addEventListener('input',renderProducts);
 document.getElementById('positionFilter').addEventListener('change',renderProducts);
 document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>{state.lang=b.dataset.lang;document.querySelectorAll('.lang button').forEach(x=>x.classList.remove('active'));b.classList.add('active');applyLang();renderFilters();renderProducts();renderCart();});
 document.getElementById('orderForm').addEventListener('submit',submitOrder);
 document.getElementById('wishForm').addEventListener('submit',submitWish);
-document.getElementById('closeLightbox').onclick=()=>document.getElementById('lightbox').classList.add('hidden');
+document.getElementById('closeLightbox').onclick=closeLightbox;
+document.getElementById('prevLightbox').onclick=()=>moveLightbox(-1);
+document.getElementById('nextLightbox').onclick=()=>moveLightbox(1);
+document.addEventListener('keydown',e=>{
+  const hidden=document.getElementById('lightbox').classList.contains('hidden');
+  if(hidden) return;
+  if(e.key==='Escape') closeLightbox();
+  if(e.key==='ArrowLeft') moveLightbox(-1);
+  if(e.key==='ArrowRight') moveLightbox(1);
+});
 load();
