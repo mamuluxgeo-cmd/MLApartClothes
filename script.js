@@ -30,17 +30,32 @@ function driveId(url){
   const u=String(url).trim();
   const m1=u.match(/[?&]id=([^&]+)/);
   const m2=u.match(/file\/d\/([^/]+)/);
-  const m3=u.match(/\/d\/([^/?#]+)/);
-  let id=(m1&&m1[1])||(m2&&m2[1])||(m3&&m3[1])||'';
-  id=String(id).split(/[=&#?]/)[0];
+  const m3=u.match(/googleusercontent\.com\/d\/([^/?#=]+)/);
+  const m4=u.match(/\/d\/([^/?#=]+)/);
+  let id=(m1&&m1[1])||(m2&&m2[1])||(m3&&m3[1])||(m4&&m4[1])||'';
+  id=decodeURIComponent(String(id)).split(/[=&#?]/)[0];
   return id;
 }
-function normalizeImage(url){
-  if(!url) return '';
-  const u=String(url).trim();
-  const id=driveId(u);
-  if(id) return `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
-  return u;
+function imageCandidates(url){
+  if(!url) return [];
+  const original=String(url).trim();
+  const id=driveId(original);
+  const list=[original];
+  if(id){
+    list.push(`https://lh3.googleusercontent.com/d/${id}`);
+    list.push(`https://drive.google.com/thumbnail?id=${id}&sz=w1200`);
+    list.push(`https://drive.google.com/uc?export=view&id=${id}`);
+  }
+  return [...new Set(list.filter(Boolean))];
+}
+function firstImage(url){ return imageCandidates(url)[0] || ''; }
+function imgAltAttr(url){ return esc(imageCandidates(url).join('|||')); }
+function nextImage(img){
+  const list=String(img.dataset.alt||'').split('|||').filter(Boolean);
+  const ix=Number(img.dataset.ix||0)+1;
+  if(ix<list.length){ img.dataset.ix=String(ix); img.src=list[ix]; return; }
+  img.closest('.photo-wrap')?.classList.add('no-photo');
+  img.style.display='none';
 }
 
 async function load(){
@@ -49,9 +64,9 @@ async function load(){
     if(!res.ok) throw new Error(res.error);
     state.positions = res.positions || [];
     state.products = (res.products || []).map(p=>{
-      const imgs=(p.images&&p.images.length?p.images:(p.Images?safeJson(p.Images):[])).filter(Boolean).map(normalizeImage);
+      const imgs=(p.images&&p.images.length?p.images:(p.Images?safeJson(p.Images):[])).filter(Boolean);
       p.images=imgs;
-      p.MainImage=normalizeImage(p.MainImage || imgs[0] || '');
+      p.MainImage=p.MainImage || imgs[0] || '';
       return p;
     });
     applyLang(); renderFilters(); renderProducts(); renderCart();
@@ -97,12 +112,12 @@ function renderProducts(){
 }
 function card(p){
   const sizes=(p.sizes||[]).map(s=>`<button class="size ${s.disabled?'disabled':''}" ${s.disabled?'disabled':''} onclick="selectSize('${p.ProductID}','${esc(s.size)}',this)">${esc(s.size)}</button>`).join('');
-  const imgs=(p.images&&p.images.length?p.images:[p.MainImage]).filter(Boolean).map(normalizeImage);
-  const main=normalizeImage(p.MainImage || imgs[0] || '');
-  const gallery=imgs.map(url=>`<img src="${url}" onerror="this.style.display='none'" onclick="openLightbox('${url}')">`).join('');
+  const imgs=(p.images&&p.images.length?p.images:[p.MainImage]).filter(Boolean);
+  const main=p.MainImage || imgs[0] || '';
+  const gallery=imgs.map(url=>`<img src="${firstImage(url)}" data-alt="${imgAltAttr(url)}" data-ix="0" onerror="nextImage(this)" onclick="openLightbox('${esc(url)}')">`).join('');
   const available=(p.sizes||[]).some(s=>!s.disabled);
   return `<article class="product" data-id="${p.ProductID}">
-    <div class="photo-wrap"><img src="${main}" onerror="this.closest('.photo-wrap').classList.add('no-photo')" onclick="openLightbox('${main}')"><span class="badge">${esc(p.Code)}</span></div>
+    <div class="photo-wrap"><img src="${firstImage(main)}" data-alt="${imgAltAttr(main)}" data-ix="0" onerror="nextImage(this)" onclick="openLightbox('${esc(main)}')"><span class="badge">${esc(p.Code)}</span></div>
     <div class="p-body">
       <h3>${esc(nameOf(p))}</h3><div class="code">${p.position?esc(nameOf(p.position)):''}</div>
       <div class="price">${p.OldPrice?`<span class="old">${money(p.OldPrice)}</span>`:''}<span class="new">${money(p.Price)}</span></div>
@@ -139,7 +154,7 @@ async function submitWish(e){
   const res=await api('createWish',{request:fd},'POST');
   if(!res.ok) return toast(res.error); e.target.reset(); toast(tr('wish'));
 }
-function openLightbox(url){ url=normalizeImage(url); if(!url) return; document.getElementById('lightboxImg').src=url; document.getElementById('lightbox').classList.remove('hidden'); }
+function openLightbox(url){ const src=firstImage(url); if(!src) return; document.getElementById('lightboxImg').src=src; document.getElementById('lightboxImg').dataset.alt=imgAltAttr(url); document.getElementById('lightboxImg').dataset.ix='0'; document.getElementById('lightboxImg').onerror=function(){nextImage(this)}; document.getElementById('lightbox').classList.remove('hidden'); }
 
 document.getElementById('searchInput').addEventListener('input',renderProducts);
 document.getElementById('positionFilter').addEventListener('change',renderProducts);
