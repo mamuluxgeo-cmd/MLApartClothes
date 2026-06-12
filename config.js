@@ -1,4 +1,3 @@
-// Apps Script Web App URL ჩასვი აქ Deploy-ის შემდეგ
 window.APP_CONFIG = {
-  API_URL: "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE"
+  API_URL: 'https://script.google.com/macros/s/AKfycbyqbWuwyDAVf1RKdhts8cL4JZm1xmkr_bOIPk4d8HPlCWKQn8dIlePaIfnxrWFpLYCI/exec'
 };
