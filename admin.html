@@ -70,7 +70,7 @@
           <h2>პროდუქტის რედაქტირება</h2>
           <input type="hidden" name="ProductID" id="editProductId">
           <div class="split">
-            <input name="Code" id="editCode" placeholder="კოდი" readonly>
+            <input name="Code" id="editCode" placeholder="კოდი *" required>
             <select name="PositionID" id="editPosition" required></select>
           </div>
           <div class="split">
@@ -96,6 +96,7 @@
             <button type="submit">ცვლილებების შენახვა</button>
             <button type="button" class="secondary" id="cancelEditBtn">დახურვა</button>
           </div>
+          <button type="button" class="secondary" id="deleteProductBtn">კოდის/პროდუქტის წაშლა</button>
         </form>
       </div>
     </section>
@@ -170,6 +171,7 @@
 
     <section id="analyticsTab" class="panel tab" hidden>
       <h2>ანალიტიკა</h2>
+      <div class="form"><button type="button" id="exportStockBtn">ნაშთის Excel ჩამოტვირთვა</button></div>
       <div id="analyticsBox"></div>
     </section>
   </main>
