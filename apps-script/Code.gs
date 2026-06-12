@@ -82,7 +82,8 @@ function getCatalog() {
   const products = rows('products').filter(x => x.Status === 'active');
   const stock = rows('stock').filter(x => x.Status === 'active');
   products.forEach(p => {
-    p.images = parseImages(p.Images);
+    p.images = parseImages(p.Images).map(normalizeDriveUrl);
+    p.MainImage = normalizeDriveUrl(p.MainImage || (p.images[0] || ''));
     p.position = positions.find(pos => pos.PositionID === p.PositionID) || null;
     p.sizes = stock.filter(s => s.ProductID === p.ProductID).map(s => ({
       size: s.Size,
@@ -116,7 +117,7 @@ function uploadImage(body) {
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   const id = file.getId();
-  return { ok: true, id, url: 'https://drive.google.com/uc?export=view&id=' + id };
+  return { ok: true, id, url: 'https://lh3.googleusercontent.com/d/' + id + '=w1200' };
 }
 
 function savePosition(position) {
@@ -135,7 +136,7 @@ function saveProduct(p) {
   if (!p.sizes || !p.sizes.length) throw new Error('At least one size is required');
   assertUniqueCode(p.Code, '');
   const productId = 'PR-' + Utilities.getUuid();
-  const images = p.images || [];
+  const images = (p.images || []).map(normalizeDriveUrl);
   sheet('products').appendRow([
     productId, cleanCode(p.Code), p.PositionID, p.NameKA || '', p.NameEN || '', p.NameRU || '',
     p.OldPrice || '', p.Price || '', p.DescriptionKA || '', p.DescriptionEN || '', p.DescriptionRU || '',
@@ -261,17 +262,17 @@ function getAnalytics() {
   const stockRows = rows('stock');
   const items = rows('saleItems');
   const products = rows('products');
-  const lowStock = stockRows
-    .map(s => ({ code: s.Code, size: s.Size, qty: Number(s.Qty || 0), reserved: Number(s.ReservedQty || 0), available: Number(s.Qty || 0) - Number(s.ReservedQty || 0) }))
-    .filter(x => x.available <= 2)
-    .sort((a, b) => a.available - b.available);
+  const allStock = stockRows
+    .map(s => ({ code: s.Code, size: s.Size, qty: Number(s.Qty || 0), reserved: Number(s.ReservedQty || 0), sold: Number(s.SoldQty || 0), available: Number(s.Qty || 0) - Number(s.ReservedQty || 0) }))
+    .sort((a, b) => String(a.code).localeCompare(String(b.code)) || String(a.size).localeCompare(String(b.size)));
+  const lowStock = allStock.filter(x => x.available <= 2).sort((a, b) => a.available - b.available);
   const soldMap = {};
   items.forEach(i => { soldMap[i.Code] = (soldMap[i.Code] || 0) + Number(i.Qty || 0); });
   const bestSellers = Object.keys(soldMap).map(code => {
     const p = products.find(x => x.Code === code) || {};
     return { code, name: p.NameKA || '', sold: soldMap[code] };
   }).sort((a, b) => b.sold - a.sold).slice(0, 10);
-  return { ok: true, data: { lowStock, bestSellers } };
+  return { ok: true, data: { allStock, lowStock, bestSellers } };
 }
 
 function reserveStock(code, size, qty) { changeStock(code, size, qty, 'reserve'); }
@@ -332,6 +333,18 @@ function findProductById(productId) { return rowsWithRow('products').find(p => p
 function setCell(sh, headers, rowNumber, header, value) {
   const ix = headers.indexOf(header);
   if (ix >= 0) sh.getRange(rowNumber, ix + 1).setValue(value);
+}
+function normalizeDriveUrl(url) {
+  if (!url) return '';
+  const value = String(url).trim();
+  let id = '';
+  const m1 = value.match(/[?&]id=([^&]+)/);
+  const m2 = value.match(/\/d\/([^/?]+)/);
+  const m3 = value.match(/file\/d\/([^/]+)/);
+  if (m1) id = m1[1];
+  else if (m2) id = m2[1];
+  else if (m3) id = m3[1];
+  return id ? 'https://lh3.googleusercontent.com/d/' + id + '=w1200' : value;
 }
 function sheet(key) { return SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(key); }
 function rows(key) {
