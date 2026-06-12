@@ -1,1 +1,123 @@
-<!doctype html><html lang="ka"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Admin | MLApartClothes</title><link rel="stylesheet" href="style.css"></head><body><main class="admin-shell"><header class="hero"><div><p class="eyebrow">Admin Panel</p><h1>სამართავი პანელი</h1><p>პროდუქცია, ფოტოები, შეკვეთები, სურვილები და ანალიტიკა.</p></div></header><nav class="nav"><button class="active" data-tab="productsTab">პროდუქცია</button><button data-tab="ordersTab">შეკვეთები</button><button data-tab="wishTab">სურვილები</button><button data-tab="analyticsTab">ანალიტიკა</button></nav><section id="productsTab" class="panel tab"><div class="split"><form id="positionForm" class="form"><h2>პოზიციის დამატება</h2><input name="NameKA" placeholder="პოზიცია ქართულად" required><input name="NameEN" placeholder="Position English"><input name="NameRU" placeholder="Позиция русский"><button>დამატება</button></form><form id="productForm" class="form"><h2>პროდუქტის დამატება</h2><input name="Code" placeholder="კოდი შენით მიუთითე *" required><select name="PositionID" id="adminPosition" required></select><input name="NameKA" placeholder="დასახელება ქართულად *" required><input name="NameEN" placeholder="Name English"><input name="NameRU" placeholder="Название русский"><input name="OldPrice" type="number" placeholder="ძველი ფასი"><input name="Price" type="number" placeholder="ახალი ფასი *" required><textarea name="DescriptionKA" placeholder="აღწერა ქართულად"></textarea><label>ფოტოები, პირველი იქნება მთავარი</label><input id="photoInput" type="file" accept="image/*" multiple required><div id="photoPreview" class="chips"></div><label>ზომები და რაოდენობები</label><div id="sizesBox"></div><button type="button" class="secondary" id="addSizeBtn">ზომის დამატება</button><button>პროდუქტის შენახვა</button></form></div><h2>არსებული პროდუქცია</h2><div id="productsTable"></div></section><section id="ordersTab" class="panel tab" hidden><h2>შეკვეთები</h2><div id="ordersTable"></div></section><section id="wishTab" class="panel tab" hidden><h2>კლიენტის სურვილები</h2><div id="wishTable"></div></section><section id="analyticsTab" class="panel tab" hidden><h2>ანალიტიკა</h2><div id="analyticsBox"></div></section></main><div id="toast" class="toast"></div><script src="config.js"></script><script src="admin.js"></script></body></html>
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>სამართავი პანელი | MLApartClothes</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">MLApartClothes</p>
+        <h1>სამართავი პანელი</h1>
+        <p>პროდუქცია, პოზიციები, შეკვეთები, სურვილები, სალარო და ანალიტიკა ერთ სივრცეში.</p>
+      </div>
+    </header>
+
+    <nav class="nav">
+      <button class="active" data-tab="productsTab">პროდუქცია</button>
+      <button data-tab="positionsTab">პოზიციები</button>
+      <button data-tab="ordersTab">შეკვეთები</button>
+      <button data-tab="wishTab">სურვილები</button>
+      <button data-tab="cashierTab">სალარო</button>
+      <button data-tab="analyticsTab">ანალიტიკა</button>
+    </nav>
+
+    <section id="productsTab" class="panel tab">
+      <form id="productForm" class="form">
+        <h2>პროდუქტის დამატება</h2>
+        <div class="split">
+          <input name="Code" placeholder="კოდი შენით მიუთითე *" required>
+          <select name="PositionID" id="adminPosition" required></select>
+        </div>
+        <div class="split">
+          <input name="NameKA" placeholder="დასახელება ქართულად *" required>
+          <input name="NameEN" placeholder="Name English">
+        </div>
+        <input name="NameRU" placeholder="Название русский">
+        <div class="split">
+          <input name="OldPrice" type="number" placeholder="ძველი ფასი, თუ აქვს">
+          <input name="Price" type="number" placeholder="ახალი ფასი *" required>
+        </div>
+        <textarea name="DescriptionKA" placeholder="აღწერა ქართულად"></textarea>
+
+        <label>ფოტოები, პირველი ატვირთული იქნება მთავარი ფოტო</label>
+        <input id="photoInput" type="file" accept="image/*" multiple required>
+        <div id="photoPreview" class="chips"></div>
+
+        <label>ზომები და რაოდენობები</label>
+        <div id="sizesBox"></div>
+        <button type="button" class="secondary" id="addSizeBtn">ზომის დამატება</button>
+        <button>პროდუქტის შენახვა</button>
+      </form>
+
+      <h2>არსებული პროდუქცია</h2>
+      <div id="productsTable"></div>
+    </section>
+
+    <section id="positionsTab" class="panel tab" hidden>
+      <div class="split">
+        <form id="positionForm" class="form">
+          <h2>პოზიციის დამატება</h2>
+          <input name="NameKA" placeholder="მაგ: მაისური ქართულად *" required>
+          <input name="NameEN" placeholder="მაგ: T-shirt ინგლისურად">
+          <input name="NameRU" placeholder="მაგ: Футболка რუსულად">
+          <button>პოზიციის შენახვა</button>
+        </form>
+        <div>
+          <h2>არსებული პოზიციები</h2>
+          <div id="positionsTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ordersTab" class="panel tab" hidden>
+      <h2>შეკვეთები</h2>
+      <div id="ordersTable"></div>
+    </section>
+
+    <section id="wishTab" class="panel tab" hidden>
+      <h2>კლიენტის სურვილები</h2>
+      <div id="wishTable"></div>
+    </section>
+
+    <section id="cashierTab" class="panel tab" hidden>
+      <h2>სალაროს პანელი</h2>
+      <p class="code">კოდით გატარება, ფასდაკლება, ქეში/ტერმინალი და დღის დახურვა.</p>
+      <div class="split">
+        <div class="form">
+          <input id="cashierName" placeholder="მოლარის სახელი">
+          <input id="codeInput" placeholder="პროდუქტის კოდი">
+          <select id="productSelect"><option value="">ან აირჩიე პროდუქტი</option></select>
+          <select id="sizeSelect"><option value="">ზომა</option></select>
+          <input id="qtyInput" type="number" value="1" min="1" placeholder="რაოდენობა">
+          <input id="discountInput" type="number" value="0" min="0" placeholder="ფასდაკლება ერთეულზე">
+          <button id="addSaleItem" type="button">დამატება</button>
+        </div>
+        <div>
+          <h2>გატარება</h2>
+          <div id="saleItems" class="cart-items empty">ჯერ არაფერი დამატებულა</div>
+          <div class="cart-total"><span>ჯამი</span><b id="saleTotal">0₾</b></div>
+          <div class="form">
+            <input id="cashAmount" type="number" placeholder="ქეში">
+            <input id="cardAmount" type="number" placeholder="ტერმინალი">
+            <button id="completeSale" type="button">გაყიდვის დასრულება</button>
+            <button class="secondary" id="closeDay" type="button">დღის დახურვა</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="analyticsTab" class="panel tab" hidden>
+      <h2>ანალიტიკა</h2>
+      <div id="analyticsBox"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
