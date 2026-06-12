@@ -54,7 +54,12 @@
     </aside>
   </main>
 
-  <div id="lightbox" class="lightbox hidden"><button id="closeLightbox">×</button><img id="lightboxImg"></div>
+  <div id="lightbox" class="lightbox hidden">
+    <button id="closeLightbox" class="lightbox-close">×</button>
+    <button id="prevLightbox" class="lightbox-nav lightbox-prev">‹</button>
+    <img id="lightboxImg" alt="Product photo">
+    <button id="nextLightbox" class="lightbox-nav lightbox-next">›</button>
+  </div>
   <div id="toast" class="toast"></div>
 
   <script src="config.js"></script>
