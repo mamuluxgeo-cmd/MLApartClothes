@@ -56,7 +56,48 @@
       </form>
 
       <h2>არსებული პროდუქცია</h2>
+      <div class="form">
+        <div class="split">
+          <input id="productCodeFilter" placeholder="კოდით ძებნა">
+          <select id="productPositionFilter"><option value="">ყველა პოზიცია</option></select>
+        </div>
+        <button type="button" class="secondary" id="clearProductFilters">ფილტრის გასუფთავება</button>
+      </div>
       <div id="productsTable"></div>
+
+      <div id="editPanel" class="panel" hidden>
+        <form id="editProductForm" class="form">
+          <h2>პროდუქტის რედაქტირება</h2>
+          <input type="hidden" name="ProductID" id="editProductId">
+          <div class="split">
+            <input name="Code" id="editCode" placeholder="კოდი" readonly>
+            <select name="PositionID" id="editPosition" required></select>
+          </div>
+          <div class="split">
+            <input name="NameKA" id="editNameKA" placeholder="პროდუქტის სახელი ქართულად *" required>
+            <input name="NameEN" id="editNameEN" placeholder="Product name English">
+          </div>
+          <input name="NameRU" id="editNameRU" placeholder="Название товара">
+          <div class="split">
+            <input name="OldPrice" id="editOldPrice" type="number" placeholder="ძველი ფასი">
+            <input name="Price" id="editPrice" type="number" placeholder="ახალი ფასი *" required>
+          </div>
+          <textarea name="DescriptionKA" id="editDescriptionKA" placeholder="პროდუქტის აღწერა ქართულად"></textarea>
+
+          <h3>ზომები და ნაშთი</h3>
+          <p class="code">აქ შეგიძლია რაოდენობის მომატება, დაკლება ან ახალი ზომის დამატება.</p>
+          <div id="editSizesBox"></div>
+          <div class="split">
+            <input id="newEditSize" placeholder="ახალი ზომა">
+            <input id="newEditQty" type="number" min="0" placeholder="რაოდენობა">
+          </div>
+          <button type="button" class="secondary" id="addEditSizeBtn">ახალი ზომის დამატება</button>
+          <div class="split">
+            <button type="submit">ცვლილებების შენახვა</button>
+            <button type="button" class="secondary" id="cancelEditBtn">დახურვა</button>
+          </div>
+        </form>
+      </div>
     </section>
 
     <section id="positionsTab" class="panel tab" hidden>
