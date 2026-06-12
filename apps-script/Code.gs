@@ -35,6 +35,7 @@ function doPost(e) {
     if (action === 'uploadImage') return json(uploadImage(body));
     if (action === 'savePosition') return json(savePosition(body.position));
     if (action === 'saveProduct') return json(saveProduct(body.product));
+    if (action === 'updateProduct') return json(updateProduct(body.product, body.stock || []));
     if (action === 'createOrder') return json(createOrder(body.order));
     if (action === 'updateOrderStatus') return json(updateStatus('orders', 'OrderID', body.id, body.status));
     if (action === 'createWish') return json(createWish(body.request));
@@ -132,16 +133,73 @@ function saveProduct(p) {
   if (!p.NameKA) throw new Error('Name is required');
   if (!p.Price) throw new Error('Price is required');
   if (!p.sizes || !p.sizes.length) throw new Error('At least one size is required');
+  assertUniqueCode(p.Code, '');
   const productId = 'PR-' + Utilities.getUuid();
   const images = p.images || [];
   sheet('products').appendRow([
-    productId, p.Code, p.PositionID, p.NameKA || '', p.NameEN || '', p.NameRU || '',
+    productId, cleanCode(p.Code), p.PositionID, p.NameKA || '', p.NameEN || '', p.NameRU || '',
     p.OldPrice || '', p.Price || '', p.DescriptionKA || '', p.DescriptionEN || '', p.DescriptionRU || '',
     images[0] || '', JSON.stringify(images), 'active', now(), now()
   ]);
-  const stockRows = p.sizes.map(s => ['ST-' + Utilities.getUuid(), productId, p.Code, s.size, Number(s.qty || 0), 0, 0, 'active', now()]);
+  const stockRows = p.sizes.map(s => ['ST-' + Utilities.getUuid(), productId, cleanCode(p.Code), s.size, Number(s.qty || 0), 0, 0, 'active', now()]);
   if (stockRows.length) sheet('stock').getRange(sheet('stock').getLastRow() + 1, 1, stockRows.length, stockRows[0].length).setValues(stockRows);
   return { ok: true, productId };
+}
+
+function updateProduct(p, stockRows) {
+  if (!p.ProductID) throw new Error('ProductID is required');
+  if (!p.PositionID) throw new Error('Position is required');
+  if (!p.NameKA) throw new Error('Name is required');
+  if (!p.Price) throw new Error('Price is required');
+  const product = findProductById(p.ProductID);
+  if (!product) throw new Error('Product not found');
+  const code = cleanCode(product.Code);
+  const sh = sheet('products');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+  const rowNumber = product.__row;
+  setCell(sh, headers, rowNumber, 'PositionID', p.PositionID);
+  setCell(sh, headers, rowNumber, 'NameKA', p.NameKA || '');
+  setCell(sh, headers, rowNumber, 'NameEN', p.NameEN || '');
+  setCell(sh, headers, rowNumber, 'NameRU', p.NameRU || '');
+  setCell(sh, headers, rowNumber, 'OldPrice', p.OldPrice || '');
+  setCell(sh, headers, rowNumber, 'Price', p.Price || '');
+  setCell(sh, headers, rowNumber, 'DescriptionKA', p.DescriptionKA || '');
+  setCell(sh, headers, rowNumber, 'UpdatedAt', now());
+  updateStockRows(p.ProductID, code, stockRows || []);
+  return { ok: true };
+}
+
+function updateStockRows(productId, code, stockRows) {
+  const sh = sheet('stock');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+  const stockIdIx = headers.indexOf('StockID');
+  const productIx = headers.indexOf('ProductID');
+  const sizeIx = headers.indexOf('Size');
+  const qtyIx = headers.indexOf('Qty');
+  const statusIx = headers.indexOf('Status');
+  const updatedIx = headers.indexOf('UpdatedAt');
+  const existing = {};
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][productIx]) === String(productId)) {
+      const key = String(values[r][sizeIx]).trim().toLowerCase();
+      existing[key] = { row: r + 1, stockId: values[r][stockIdIx], size: values[r][sizeIx] };
+    }
+  }
+  stockRows.forEach(s => {
+    const size = String(s.Size || s.size || '').trim();
+    if (!size) return;
+    const qty = Math.max(0, Number(s.Qty || s.qty || 0));
+    const key = size.toLowerCase();
+    if (existing[key]) {
+      sh.getRange(existing[key].row, qtyIx + 1).setValue(qty);
+      sh.getRange(existing[key].row, statusIx + 1).setValue('active');
+      sh.getRange(existing[key].row, updatedIx + 1).setValue(now());
+    } else {
+      sh.appendRow(['ST-' + Utilities.getUuid(), productId, code, size, qty, 0, 0, 'active', now()]);
+    }
+  });
 }
 
 function createOrder(order) {
@@ -228,8 +286,9 @@ function changeStock(code, size, qty, mode) {
   const qtyIx = headers.indexOf('Qty');
   const resIx = headers.indexOf('ReservedQty');
   const soldIx = headers.indexOf('SoldQty');
+  const updatedIx = headers.indexOf('UpdatedAt');
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][codeIx]) === String(code) && String(data[r][sizeIx]) === String(size)) {
+    if (cleanCode(data[r][codeIx]) === cleanCode(code) && String(data[r][sizeIx]) === String(size)) {
       const available = Number(data[r][qtyIx] || 0) - Number(data[r][resIx] || 0);
       if (available < qty) throw new Error('Not enough stock for ' + code + ' size ' + size);
       if (mode === 'reserve') sh.getRange(r + 1, resIx + 1).setValue(Number(data[r][resIx] || 0) + qty);
@@ -237,6 +296,7 @@ function changeStock(code, size, qty, mode) {
         sh.getRange(r + 1, qtyIx + 1).setValue(Number(data[r][qtyIx] || 0) - qty);
         sh.getRange(r + 1, soldIx + 1).setValue(Number(data[r][soldIx] || 0) + qty);
       }
+      if (updatedIx >= 0) sh.getRange(r + 1, updatedIx + 1).setValue(now());
       return;
     }
   }
@@ -258,6 +318,21 @@ function updateStatus(sheetName, idCol, id, status) {
   throw new Error('Record not found');
 }
 
+function assertUniqueCode(code, allowProductId) {
+  const clean = cleanCode(code);
+  const products = rowsWithRow('products');
+  const duplicateProduct = products.find(p => cleanCode(p.Code) === clean && (!allowProductId || p.ProductID !== allowProductId));
+  if (duplicateProduct) throw new Error('ეს კოდი უკვე არსებობს სტოკში: ' + clean);
+  const stockRows = rows('stock');
+  const duplicateStock = stockRows.find(s => cleanCode(s.Code) === clean && (!allowProductId || s.ProductID !== allowProductId));
+  if (duplicateStock) throw new Error('ეს კოდი უკვე არსებობს სტოკში: ' + clean);
+}
+function cleanCode(code) { return String(code || '').trim(); }
+function findProductById(productId) { return rowsWithRow('products').find(p => p.ProductID === productId); }
+function setCell(sh, headers, rowNumber, header, value) {
+  const ix = headers.indexOf(header);
+  if (ix >= 0) sh.getRange(rowNumber, ix + 1).setValue(value);
+}
 function sheet(key) { return SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(key); }
 function rows(key) {
   const sh = sheet(key);
@@ -265,6 +340,17 @@ function rows(key) {
   const values = sh.getDataRange().getValues();
   const headers = values.shift();
   return values.map(row => Object.fromEntries(headers.map((h, i) => [h, row[i]])));
+}
+function rowsWithRow(key) {
+  const sh = sheet(key);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const values = sh.getDataRange().getValues();
+  const headers = values.shift();
+  return values.map((row, i) => {
+    const obj = Object.fromEntries(headers.map((h, ix) => [h, row[ix]]));
+    obj.__row = i + 2;
+    return obj;
+  });
 }
 function parseImages(value) { try { return value ? JSON.parse(value) : []; } catch (e) { return []; } }
 function now() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'); }
