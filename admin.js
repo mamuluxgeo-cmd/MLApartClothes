@@ -3,6 +3,7 @@ let data={positions:[],products:[],stock:[],orders:[],orderItems:[],wishRequests
 let uploaded=[];
 let sale=[];
 let editingProductId='';
+let editingPositionId='';
 
 async function api(action,payload={},method='GET'){
   if(!API||API.includes('PASTE_')) throw new Error('API URL is not configured');
@@ -42,7 +43,14 @@ function render(){
   renderSale();
 }
 function renderPositions(){
-  document.getElementById('positionsTable').innerHTML=table(['ქართული','English','Русский','სტატუსი'],data.positions.map(p=>[esc(p.NameKA),esc(p.NameEN),esc(p.NameRU),esc(p.Status)]));
+  const rows=data.positions.map(p=>[
+    esc(p.NameKA),
+    esc(p.NameEN),
+    esc(p.NameRU),
+    esc(p.Status),
+    `<button type="button" class="secondary" onclick="openEditPosition('${p.PositionID}')">რედაქტირება</button>`
+  ]);
+  document.getElementById('positionsTable').innerHTML=table(['ქართული','English','Русский','სტატუსი','მართვა'],rows);
 }
 function renderProducts(){
   const codeQ=(document.getElementById('productCodeFilter')?.value||'').trim().toLowerCase();
@@ -82,6 +90,28 @@ async function changeStatus(type,id,status){
   if(!r.ok) return toast(r.error);
   toast('სტატუსი შეიცვალა');
   load();
+}
+
+function openEditPosition(positionId){
+  const p=data.positions.find(x=>x.PositionID===positionId);
+  if(!p) return toast('პოზიცია ვერ მოიძებნა');
+  editingPositionId=positionId;
+  document.getElementById('editPositionPanel').hidden=false;
+  document.getElementById('editPositionId').value=p.PositionID;
+  document.getElementById('editPositionNameKA').value=p.NameKA||'';
+  document.getElementById('editPositionNameEN').value=p.NameEN||'';
+  document.getElementById('editPositionNameRU').value=p.NameRU||'';
+  document.getElementById('editPositionPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function submitEditPosition(e){
+  e.preventDefault();
+  const position=Object.fromEntries(new FormData(e.target).entries());
+  const r=await api('updatePosition',{position},'POST');
+  if(!r.ok) return toast(r.error);
+  toast('პოზიცია განახლდა');
+  document.getElementById('editPositionPanel').hidden=true;
+  editingPositionId='';
+  await load();
 }
 
 function addSize(){
@@ -262,6 +292,8 @@ document.getElementById('clearProductFilters').onclick=()=>{document.getElementB
 document.getElementById('editProductForm').onsubmit=submitEditProduct;
 document.getElementById('addEditSizeBtn').onclick=addEditSize;
 document.getElementById('cancelEditBtn').onclick=()=>{document.getElementById('editPanel').hidden=true;editingProductId='';};
+document.getElementById('editPositionForm').onsubmit=submitEditPosition;
+document.getElementById('cancelPositionEditBtn').onclick=()=>{document.getElementById('editPositionPanel').hidden=true;editingPositionId='';};
 
 document.getElementById('codeInput').addEventListener('input',renderSizes);
 document.getElementById('productSelect').addEventListener('change',()=>{
