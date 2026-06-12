@@ -25,17 +25,21 @@ function nameOf(obj){ const l=state.lang.toUpperCase(); return obj['Name'+l] || 
 function money(v){ return `${Number(v||0).toFixed(0)}₾`; }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); }
 function esc(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+function driveId(url){
+  if(!url) return '';
+  const u=String(url).trim();
+  const m1=u.match(/[?&]id=([^&]+)/);
+  const m2=u.match(/file\/d\/([^/]+)/);
+  const m3=u.match(/\/d\/([^/?#]+)/);
+  let id=(m1&&m1[1])||(m2&&m2[1])||(m3&&m3[1])||'';
+  id=String(id).split(/[=&#?]/)[0];
+  return id;
+}
 function normalizeImage(url){
   if(!url) return '';
   const u=String(url).trim();
-  let id='';
-  const m1=u.match(/[?&]id=([^&]+)/);
-  const m2=u.match(/\/d\/([^/?]+)/);
-  const m3=u.match(/file\/d\/([^/]+)/);
-  if(m1) id=m1[1];
-  else if(m2) id=m2[1];
-  else if(m3) id=m3[1];
-  if(id) return `https://lh3.googleusercontent.com/d/${id}=w1200`;
+  const id=driveId(u);
+  if(id) return `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
   return u;
 }
 
