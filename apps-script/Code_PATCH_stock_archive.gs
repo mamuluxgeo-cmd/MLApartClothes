@@ -12,6 +12,7 @@ function doPost(e) {
     if (action === 'saveProduct') return json(saveProduct(body.product));
     if (action === 'updateProduct') return json(updateProduct(body.product, body.stock || []));
     if (action === 'archiveProduct') return json(archiveProduct(body.productId));
+    if (action === 'setProductStatus') return json(setProductStatus(body.productId, body.status));
     if (action === 'createOrder') return json(createOrder(body.order));
     if (action === 'updateOrderStatus') return json(updateStatus('orders', 'OrderID', body.id, body.status));
     if (action === 'createWish') return json(createWish(body.request));
@@ -73,6 +74,31 @@ function archiveProduct(productId) {
     }
   }
   return { ok: true };
+}
+
+function setProductStatus(productId, status) {
+  if (!productId) throw new Error('ProductID is required');
+  if (status !== 'active' && status !== 'inactive') throw new Error('Invalid status');
+  const product = findProductById(productId);
+  if (!product) throw new Error('Product not found');
+  const psh = sheet('products');
+  const pdata = psh.getDataRange().getValues();
+  const pheaders = pdata[0];
+  setCell(psh, pheaders, product.__row, 'Status', status);
+  setCell(psh, pheaders, product.__row, 'UpdatedAt', now());
+  const ssh = sheet('stock');
+  const sdata = ssh.getDataRange().getValues();
+  const sheaders = sdata[0];
+  const productIx = sheaders.indexOf('ProductID');
+  const statusIx = sheaders.indexOf('Status');
+  const updatedIx = sheaders.indexOf('UpdatedAt');
+  for (let r = 1; r < sdata.length; r++) {
+    if (String(sdata[r][productIx]) === String(productId)) {
+      if (statusIx >= 0) ssh.getRange(r + 1, statusIx + 1).setValue(status);
+      if (updatedIx >= 0) ssh.getRange(r + 1, updatedIx + 1).setValue(now());
+    }
+  }
+  return { ok: true, status: status };
 }
 
 function updateStockRows(productId, code, stockRows) {
@@ -176,10 +202,10 @@ function getAnalytics() {
 
 function assertUniqueCode(code, allowProductId) {
   const clean = cleanCode(code);
-  const products = rowsWithRow('products').filter(p => p.Status === 'active');
+  const products = rowsWithRow('products').filter(p => p.Status === 'active' || p.Status === 'inactive');
   const duplicateProduct = products.find(p => cleanCode(p.Code) === clean && (!allowProductId || p.ProductID !== allowProductId));
   if (duplicateProduct) throw new Error('ეს კოდი უკვე არსებობს სტოკში: ' + clean);
-  const stockRows = rows('stock').filter(s => s.Status === 'active');
+  const stockRows = rows('stock').filter(s => s.Status === 'active' || s.Status === 'inactive');
   const duplicateStock = stockRows.find(s => cleanCode(s.Code) === clean && (!allowProductId || s.ProductID !== allowProductId));
   if (duplicateStock) throw new Error('ეს კოდი უკვე არსებობს სტოკში: ' + clean);
 }
