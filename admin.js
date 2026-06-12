@@ -2,14 +2,16 @@ const API=window.APP_CONFIG.API_URL;
 let data={positions:[],products:[],stock:[],orders:[],orderItems:[],wishRequests:[],analytics:{}};
 let uploaded=[];
 let sale=[];
+let editingProductId='';
 
 async function api(action,payload={},method='GET'){
   if(!API||API.includes('PASTE_')) throw new Error('API URL is not configured');
   if(method==='GET') return fetch(`${API}?action=${action}`).then(r=>r.json());
   return fetch(API,{method:'POST',body:JSON.stringify({action,...payload})}).then(r=>r.json());
 }
-function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
 function money(v){return `${Number(v||0).toFixed(0)}₾`}
+function esc(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 
 async function load(){
   try{
@@ -23,9 +25,15 @@ async function load(){
 function render(){
   const activePositions=data.positions.filter(p=>p.Status==='active');
   const positionSelect=document.getElementById('adminPosition');
-  positionSelect.innerHTML='<option value="" selected disabled>აირჩიე პოზიცია *</option>'+activePositions.map(p=>`<option value="${p.PositionID}">${p.NameKA}</option>`).join('');
+  positionSelect.innerHTML='<option value="" selected disabled>აირჩიე პოზიცია *</option>'+activePositions.map(p=>`<option value="${p.PositionID}">${esc(p.NameKA)}</option>`).join('');
   positionSelect.value='';
-  document.getElementById('productSelect').innerHTML='<option value="">ან აირჩიე პროდუქტი</option>'+data.products.filter(p=>p.Status==='active').map(p=>`<option value="${p.Code}">${p.Code} — ${p.NameKA}</option>`).join('');
+  const filter=document.getElementById('productPositionFilter');
+  if(filter){
+    const selected=filter.value;
+    filter.innerHTML='<option value="">ყველა პოზიცია</option>'+activePositions.map(p=>`<option value="${p.PositionID}">${esc(p.NameKA)}</option>`).join('');
+    filter.value=selected;
+  }
+  document.getElementById('productSelect').innerHTML='<option value="">ან აირჩიე პროდუქტი</option>'+data.products.filter(p=>p.Status==='active').map(p=>`<option value="${esc(p.Code)}">${esc(p.Code)} — ${esc(p.NameKA)}</option>`).join('');
   renderPositions();
   renderProducts();
   renderOrders();
@@ -34,26 +42,33 @@ function render(){
   renderSale();
 }
 function renderPositions(){
-  document.getElementById('positionsTable').innerHTML=table(['ქართული','English','Русский','სტატუსი'],data.positions.map(p=>[p.NameKA,p.NameEN,p.NameRU,p.Status]));
+  document.getElementById('positionsTable').innerHTML=table(['ქართული','English','Русский','სტატუსი'],data.positions.map(p=>[esc(p.NameKA),esc(p.NameEN),esc(p.NameRU),esc(p.Status)]));
 }
 function renderProducts(){
-  document.getElementById('productsTable').innerHTML=table(['კოდი','პოზიცია','პროდუქტის სახელი','ფასი','ზომები'],data.products.map(p=>{
+  const codeQ=(document.getElementById('productCodeFilter')?.value||'').trim().toLowerCase();
+  const posQ=document.getElementById('productPositionFilter')?.value||'';
+  let list=data.products.slice().reverse();
+  if(codeQ) list=list.filter(p=>String(p.Code||'').toLowerCase().includes(codeQ));
+  if(posQ) list=list.filter(p=>p.PositionID===posQ);
+  const rows=list.map(p=>{
     const pos=data.positions.find(x=>x.PositionID===p.PositionID)||{};
-    const sizes=data.stock.filter(s=>s.ProductID===p.ProductID).map(s=>`${s.Size}: ${s.Qty}`).join(', ');
-    return [p.Code,pos.NameKA||'',p.NameKA,money(p.Price),sizes];
-  }));
+    const sizes=data.stock.filter(s=>s.ProductID===p.ProductID).map(s=>`${esc(s.Size)}: ${Number(s.Qty||0)} ც.`).join('<br>');
+    return [esc(p.Code),esc(pos.NameKA||''),esc(p.NameKA),money(p.Price),sizes,`<button type="button" class="secondary" onclick="openEditProduct('${p.ProductID}')">რედაქტირება</button>`];
+  });
+  document.getElementById('productsTable').innerHTML=table(['კოდი','პოზიცია','პროდუქტის სახელი','ფასი','ზომები','მართვა'],rows);
 }
 function renderOrders(){
-  document.getElementById('ordersTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','დრო','ჯამი','სტატუსი'],data.orders.map(o=>[o.Date,o.CustomerName,o.Phone,o.RoomNumber,o.DeliveryTime,money(o.Total),statusSelect('orders',o.OrderID,o.Status)]));
+  document.getElementById('ordersTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','დრო','ჯამი','სტატუსი'],data.orders.map(o=>[esc(o.Date),esc(o.CustomerName),esc(o.Phone),esc(o.RoomNumber),esc(o.DeliveryTime),money(o.Total),statusSelect('orders',o.OrderID,o.Status)]));
 }
 function renderWish(){
-  document.getElementById('wishTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','შეტყობინება','სტატუსი'],data.wishRequests.map(w=>[w.Date,w.CustomerName,w.Phone,w.RoomNumber,w.Message,statusSelect('wish',w.RequestID,w.Status)]));
+  document.getElementById('wishTable').innerHTML=table(['თარიღი','კლიენტი','ტელეფონი','ოთახი','შეტყობინება','სტატუსი'],data.wishRequests.map(w=>[esc(w.Date),esc(w.CustomerName),esc(w.Phone),esc(w.RoomNumber),esc(w.Message),statusSelect('wish',w.RequestID,w.Status)]));
 }
 function renderAnalytics(){
   const a=data.analytics||{};
-  document.getElementById('analyticsBox').innerHTML=`<div class="metric-grid"><div class="metric"><span>პროდუქტები</span><br><b>${data.products.length}</b></div><div class="metric"><span>შეკვეთები</span><br><b>${data.orders.length}</b></div><div class="metric"><span>სურვილები</span><br><b>${data.wishRequests.length}</b></div><div class="metric"><span>დაბალი ნაშთი</span><br><b>${(a.lowStock||[]).length}</b></div></div><h3>ყველაზე გაყიდვადი</h3>${table(['კოდი','სახელი','გაყიდულია'],(a.bestSellers||[]).map(x=>[x.code,x.name,x.sold]))}<h3>დაბალი ნაშთი</h3>${table(['კოდი','ზომა','ხელმისაწვდომი'],(a.lowStock||[]).map(x=>[x.code,x.size,x.available]))}`;
+  document.getElementById('analyticsBox').innerHTML=`<div class="metric-grid"><div class="metric"><span>პროდუქტები</span><br><b>${data.products.length}</b></div><div class="metric"><span>შეკვეთები</span><br><b>${data.orders.length}</b></div><div class="metric"><span>სურვილები</span><br><b>${data.wishRequests.length}</b></div><div class="metric"><span>დაბალი ნაშთი</span><br><b>${(a.lowStock||[]).length}</b></div></div><h3>ყველაზე გაყიდვადი</h3>${table(['კოდი','სახელი','გაყიდულია'],(a.bestSellers||[]).map(x=>[esc(x.code),esc(x.name),x.sold]))}<h3>დაბალი ნაშთი</h3>${table(['კოდი','ზომა','ხელმისაწვდომი'],(a.lowStock||[]).map(x=>[esc(x.code),esc(x.size),x.available]))}`;
 }
 function table(headers,rows){
+  if(!rows.length) return '<div class="empty">ჩანაწერი ჯერ არ არის</div>';
   return `<table class="table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 function statusSelect(type,id,status){
@@ -70,7 +85,7 @@ async function changeStatus(type,id,status){
 function addSize(){
   const d=document.createElement('div');
   d.className='split size-input';
-  d.innerHTML='<input placeholder="ზომა" required><input type="number" placeholder="რაოდენობა" required>';
+  d.innerHTML='<input placeholder="ზომა" required><input type="number" min="0" placeholder="რაოდენობა" required>';
   document.getElementById('sizesBox').appendChild(d);
 }
 async function uploadFiles(files){
@@ -84,8 +99,67 @@ async function uploadFiles(files){
   }
   document.getElementById('photoPreview').innerHTML=uploaded.map((u,i)=>`<span class="chip">ფოტო ${i+1}${i===0?' მთავარი':''}</span>`).join('');
 }
-function fileToBase64(file){
-  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)});
+function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)})}
+
+function openEditProduct(productId){
+  const p=data.products.find(x=>x.ProductID===productId);
+  if(!p) return toast('პროდუქტი ვერ მოიძებნა');
+  editingProductId=productId;
+  document.getElementById('editPanel').hidden=false;
+  document.getElementById('editProductId').value=p.ProductID;
+  document.getElementById('editCode').value=p.Code||'';
+  document.getElementById('editNameKA').value=p.NameKA||'';
+  document.getElementById('editNameEN').value=p.NameEN||'';
+  document.getElementById('editNameRU').value=p.NameRU||'';
+  document.getElementById('editOldPrice').value=p.OldPrice||'';
+  document.getElementById('editPrice').value=p.Price||'';
+  document.getElementById('editDescriptionKA').value=p.DescriptionKA||'';
+  const activePositions=data.positions.filter(x=>x.Status==='active');
+  document.getElementById('editPosition').innerHTML='<option value="">აირჩიე პოზიცია</option>'+activePositions.map(pos=>`<option value="${pos.PositionID}">${esc(pos.NameKA)}</option>`).join('');
+  document.getElementById('editPosition').value=p.PositionID||'';
+  renderEditSizes();
+  document.getElementById('editPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderEditSizes(){
+  const stocks=data.stock.filter(s=>s.ProductID===editingProductId);
+  document.getElementById('editSizesBox').innerHTML=stocks.map(s=>{
+    const qty=Number(s.Qty||0);
+    const reserved=Number(s.ReservedQty||0);
+    const sold=Number(s.SoldQty||0);
+    return `<div class="split edit-stock-row" data-stockid="${s.StockID}" data-size="${esc(s.Size)}"><input value="${esc(s.Size)}" readonly><input class="edit-qty" type="number" min="0" value="${qty}"><button type="button" class="secondary" onclick="stepEditQty(this,-1)">-1</button><button type="button" class="secondary" onclick="stepEditQty(this,1)">+1</button><small>დაჯავშნილი: ${reserved} / გაყიდული: ${sold}</small></div>`;
+  }).join('') || '<div class="empty">ზომა ჯერ არ არის</div>';
+}
+function stepEditQty(btn,step){
+  const input=btn.parentElement.querySelector('.edit-qty');
+  input.value=Math.max(0,Number(input.value||0)+step);
+}
+function addEditSize(){
+  const size=document.getElementById('newEditSize').value.trim();
+  const qty=Number(document.getElementById('newEditQty').value||0);
+  if(!size) return toast('მიუთითე ახალი ზომა');
+  if(data.stock.some(s=>s.ProductID===editingProductId && String(s.Size).toLowerCase()===size.toLowerCase())) return toast('ეს ზომა უკვე არსებობს');
+  const box=document.getElementById('editSizesBox');
+  const html=`<div class="split edit-stock-row" data-stockid="" data-size="${esc(size)}"><input value="${esc(size)}" readonly><input class="edit-qty" type="number" min="0" value="${qty}"><button type="button" class="secondary" onclick="stepEditQty(this,-1)">-1</button><button type="button" class="secondary" onclick="stepEditQty(this,1)">+1</button><small>ახალი ზომა</small></div>`;
+  if(box.querySelector('.empty')) box.innerHTML=html; else box.insertAdjacentHTML('beforeend',html);
+  document.getElementById('newEditSize').value='';
+  document.getElementById('newEditQty').value='';
+}
+async function submitEditProduct(e){
+  e.preventDefault();
+  const product=Object.fromEntries(new FormData(e.target).entries());
+  const stock=[...document.querySelectorAll('.edit-stock-row')].map(row=>({
+    StockID:row.dataset.stockid,
+    ProductID:editingProductId,
+    Code:document.getElementById('editCode').value,
+    Size:row.dataset.size,
+    Qty:Number(row.querySelector('.edit-qty').value||0)
+  }));
+  const r=await api('updateProduct',{product,stock},'POST');
+  if(!r.ok) return toast(r.error);
+  toast('პროდუქტი განახლდა');
+  document.getElementById('editPanel').hidden=true;
+  editingProductId='';
+  await load();
 }
 
 function selectedProduct(){
@@ -98,7 +172,7 @@ function renderSizes(){
   if(!p){sel.innerHTML='<option value="">ზომა</option>';return}
   const sizes=data.stock.filter(s=>s.ProductID===p.ProductID).map(s=>{
     const available=Number(s.Qty||0)-Number(s.ReservedQty||0);
-    return `<option value="${s.Size}" ${available<=0?'disabled':''}>${s.Size} — ${available} ც.</option>`;
+    return `<option value="${esc(s.Size)}" ${available<=0?'disabled':''}>${esc(s.Size)} — ${available} ც.</option>`;
   }).join('');
   sel.innerHTML='<option value="">ზომა</option>'+sizes;
 }
@@ -127,7 +201,7 @@ function renderSale(){
     return;
   }
   box.className='cart-items';
-  box.innerHTML=sale.map((i,ix)=>`<div class="cart-line"><div><b>${i.nameKA}</b><br><small>${i.code} / ${i.size} / ${i.qty} ც. / ფასდაკლება ${money(i.discount)}</small></div><div><b>${money(i.finalPrice*i.qty)}</b><br><button class="secondary" onclick="removeSaleItem(${ix})">წაშლა</button></div></div>`).join('');
+  box.innerHTML=sale.map((i,ix)=>`<div class="cart-line"><div><b>${esc(i.nameKA)}</b><br><small>${esc(i.code)} / ${esc(i.size)} / ${i.qty} ც. / ფასდაკლება ${money(i.discount)}</small></div><div><b>${money(i.finalPrice*i.qty)}</b><br><button class="secondary" onclick="removeSaleItem(${ix})">წაშლა</button></div></div>`).join('');
   document.getElementById('saleTotal').textContent=money(saleTotal());
 }
 function removeSaleItem(ix){sale.splice(ix,1);renderSale()}
@@ -168,7 +242,7 @@ document.getElementById('productForm').onsubmit=async e=>{
   e.preventDefault();
   if(!document.getElementById('adminPosition').value){ toast('აირჩიე პოზიცია'); return; }
   const fd=Object.fromEntries(new FormData(e.target).entries());
-  const sizes=[...document.querySelectorAll('.size-input')].map(d=>({size:d.children[0].value,qty:d.children[1].value})).filter(x=>x.size&&x.qty);
+  const sizes=[...document.querySelectorAll('.size-input')].map(d=>({size:d.children[0].value,qty:d.children[1].value})).filter(x=>x.size&&String(x.qty)!=='');
   const r=await api('saveProduct',{product:{...fd,images:uploaded,sizes}},'POST');
   if(!r.ok) return toast(r.error);
   e.target.reset();
@@ -179,6 +253,13 @@ document.getElementById('productForm').onsubmit=async e=>{
   toast('პროდუქტი შეინახა');
   load();
 };
+
+document.getElementById('productCodeFilter').addEventListener('input',renderProducts);
+document.getElementById('productPositionFilter').addEventListener('change',renderProducts);
+document.getElementById('clearProductFilters').onclick=()=>{document.getElementById('productCodeFilter').value='';document.getElementById('productPositionFilter').value='';renderProducts();};
+document.getElementById('editProductForm').onsubmit=submitEditProduct;
+document.getElementById('addEditSizeBtn').onclick=addEditSize;
+document.getElementById('cancelEditBtn').onclick=()=>{document.getElementById('editPanel').hidden=true;editingProductId='';};
 
 document.getElementById('codeInput').addEventListener('input',renderSizes);
 document.getElementById('productSelect').addEventListener('change',()=>{
