@@ -14,19 +14,39 @@ async function api(action, data, method='GET'){
 function nameOf(obj){ const l=state.lang.toUpperCase(); return obj['Name'+l] || obj.NameKA || obj.NameEN || obj.NameRU || ''; }
 function money(v){ return `${Number(v||0).toFixed(0)}₾`; }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); }
+function esc(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+function normalizeImage(url){
+  if(!url) return '';
+  const u=String(url).trim();
+  let id='';
+  const m1=u.match(/[?&]id=([^&]+)/);
+  const m2=u.match(/\/d\/([^/?]+)/);
+  const m3=u.match(/file\/d\/([^/]+)/);
+  if(m1) id=m1[1];
+  else if(m2) id=m2[1];
+  else if(m3) id=m3[1];
+  if(id) return `https://lh3.googleusercontent.com/d/${id}=w1200`;
+  return u;
+}
 
 async function load(){
   try{
     const res = await api('catalog');
     if(!res.ok) throw new Error(res.error);
     state.positions = res.positions || [];
-    state.products = res.products || [];
+    state.products = (res.products || []).map(p=>{
+      const imgs=(p.images&&p.images.length?p.images:(p.Images?safeJson(p.Images):[])).filter(Boolean).map(normalizeImage);
+      p.images=imgs;
+      p.MainImage=normalizeImage(p.MainImage || imgs[0] || '');
+      return p;
+    });
     renderFilters(); renderProducts(); renderCart();
   }catch(e){ toast(e.message); }
 }
+function safeJson(v){try{return JSON.parse(v||'[]')}catch(e){return []}}
 function renderFilters(){
   const sel=document.getElementById('positionFilter');
-  sel.innerHTML = `<option value="">${t[state.lang].all}</option>` + state.positions.map(p=>`<option value="${p.PositionID}">${nameOf(p)}</option>`).join('');
+  sel.innerHTML = `<option value="">${t[state.lang].all}</option>` + state.positions.map(p=>`<option value="${p.PositionID}">${esc(nameOf(p))}</option>`).join('');
 }
 function renderProducts(){
   const q=document.getElementById('searchInput').value.toLowerCase();
@@ -35,14 +55,15 @@ function renderProducts(){
   document.getElementById('products').innerHTML=list.map(p=>card(p)).join('') || '<p>პროდუქცია ვერ მოიძებნა</p>';
 }
 function card(p){
-  const sizes=(p.sizes||[]).map(s=>`<button class="size ${s.disabled?'disabled':''}" ${s.disabled?'disabled':''} onclick="selectSize('${p.ProductID}','${s.size}',this)">${s.size}</button>`).join('');
-  const imgs=(p.images&&p.images.length?p.images:[p.MainImage]).filter(Boolean);
-  const gallery=imgs.map(url=>`<img src="${url}" onclick="openLightbox('${url}')">`).join('');
+  const sizes=(p.sizes||[]).map(s=>`<button class="size ${s.disabled?'disabled':''}" ${s.disabled?'disabled':''} onclick="selectSize('${p.ProductID}','${esc(s.size)}',this)">${esc(s.size)}</button>`).join('');
+  const imgs=(p.images&&p.images.length?p.images:[p.MainImage]).filter(Boolean).map(normalizeImage);
+  const main=normalizeImage(p.MainImage || imgs[0] || '');
+  const gallery=imgs.map(url=>`<img src="${url}" onerror="this.style.display='none'" onclick="openLightbox('${url}')">`).join('');
   const available=(p.sizes||[]).some(s=>!s.disabled);
   return `<article class="product" data-id="${p.ProductID}">
-    <div class="photo-wrap"><img src="${p.MainImage||''}" onclick="openLightbox('${p.MainImage||''}')"><span class="badge">${p.Code}</span></div>
+    <div class="photo-wrap"><img src="${main}" onerror="this.closest('.photo-wrap').classList.add('no-photo')" onclick="openLightbox('${main}')"><span class="badge">${esc(p.Code)}</span></div>
     <div class="p-body">
-      <h3>${nameOf(p)}</h3><div class="code">${p.position?nameOf(p.position):''}</div>
+      <h3>${esc(nameOf(p))}</h3><div class="code">${p.position?esc(nameOf(p.position)):''}</div>
       <div class="price">${p.OldPrice?`<span class="old">${money(p.OldPrice)}</span>`:''}<span class="new">${money(p.Price)}</span></div>
       <div class="size-row">${sizes}</div><div class="gallery">${gallery}</div>
       <button ${available?'':'disabled'} onclick="addToCart('${p.ProductID}')">${available?t[state.lang].add:t[state.lang].sold}</button>
@@ -61,7 +82,7 @@ function renderCart(){
   const box=document.getElementById('cartItems');
   if(!state.cart.length){ box.className='cart-items empty'; box.textContent='კალათა ცარიელია'; document.getElementById('cartTotal').textContent='0₾'; return; }
   box.className='cart-items';
-  box.innerHTML=state.cart.map((i,ix)=>`<div class="cart-line"><div><b>${i.name}</b><br><small>${i.code} / ${i.size} / ${i.qty} ც.</small></div><div><b>${money(i.price*i.qty)}</b><br><button class="secondary" onclick="removeCart(${ix})">წაშლა</button></div></div>`).join('');
+  box.innerHTML=state.cart.map((i,ix)=>`<div class="cart-line"><div><b>${esc(i.name)}</b><br><small>${esc(i.code)} / ${esc(i.size)} / ${i.qty} ც.</small></div><div><b>${money(i.price*i.qty)}</b><br><button class="secondary" onclick="removeCart(${ix})">წაშლა</button></div></div>`).join('');
   document.getElementById('cartTotal').textContent=money(state.cart.reduce((s,i)=>s+i.price*i.qty,0));
 }
 function removeCart(ix){ state.cart.splice(ix,1); renderCart(); }
@@ -77,7 +98,7 @@ async function submitWish(e){
   const res=await api('createWish',{request:fd},'POST');
   if(!res.ok) return toast(res.error); e.target.reset(); toast(t[state.lang].wish);
 }
-function openLightbox(url){ if(!url) return; document.getElementById('lightboxImg').src=url; document.getElementById('lightbox').classList.remove('hidden'); }
+function openLightbox(url){ url=normalizeImage(url); if(!url) return; document.getElementById('lightboxImg').src=url; document.getElementById('lightbox').classList.remove('hidden'); }
 
 document.getElementById('searchInput').addEventListener('input',renderProducts);
 document.getElementById('positionFilter').addEventListener('change',renderProducts);
