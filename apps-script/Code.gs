@@ -34,6 +34,7 @@ function doPost(e) {
     if (action === 'setup') return json(setupSheets());
     if (action === 'uploadImage') return json(uploadImage(body));
     if (action === 'savePosition') return json(savePosition(body.position));
+    if (action === 'updatePosition') return json(updatePosition(body.position));
     if (action === 'saveProduct') return json(saveProduct(body.product));
     if (action === 'updateProduct') return json(updateProduct(body.product, body.stock || []));
     if (action === 'createOrder') return json(createOrder(body.order));
@@ -126,6 +127,24 @@ function savePosition(position) {
   const id = position.PositionID || 'POS-' + Utilities.getUuid();
   sh.appendRow([id, position.NameKA || '', position.NameEN || '', position.NameRU || '', 'active', now()]);
   return { ok: true, id };
+}
+
+function updatePosition(position) {
+  if (!position || !position.PositionID) throw new Error('PositionID is required');
+  if (!position.NameKA) throw new Error('Position name is required');
+  const sh = sheet('positions');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+  const idIx = headers.indexOf('PositionID');
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][idIx]) === String(position.PositionID)) {
+      setCell(sh, headers, r + 1, 'NameKA', position.NameKA || '');
+      setCell(sh, headers, r + 1, 'NameEN', position.NameEN || '');
+      setCell(sh, headers, r + 1, 'NameRU', position.NameRU || '');
+      return { ok: true };
+    }
+  }
+  throw new Error('Position not found');
 }
 
 function saveProduct(p) {
@@ -339,7 +358,7 @@ function normalizeDriveUrl(url) {
   const value = String(url).trim();
   let id = '';
   const m1 = value.match(/[?&]id=([^&]+)/);
-  const m2 = value.match(/\/d\/([^/?]+)/);
+  const m2 = value.match(/\/d\/([^/?=]+)/);
   const m3 = value.match(/file\/d\/([^/]+)/);
   if (m1) id = m1[1];
   else if (m2) id = m2[1];
