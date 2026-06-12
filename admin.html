@@ -115,6 +115,20 @@
           <div id="positionsTable"></div>
         </div>
       </div>
+
+      <div id="editPositionPanel" class="panel" hidden>
+        <form id="editPositionForm" class="form">
+          <h2>პოზიციის რედაქტირება</h2>
+          <input type="hidden" name="PositionID" id="editPositionId">
+          <input name="NameKA" id="editPositionNameKA" placeholder="პოზიცია ქართულად *" required>
+          <input name="NameEN" id="editPositionNameEN" placeholder="Position English">
+          <input name="NameRU" id="editPositionNameRU" placeholder="Позиция русский">
+          <div class="split">
+            <button type="submit">ცვლილებების შენახვა</button>
+            <button type="button" class="secondary" id="cancelPositionEditBtn">დახურვა</button>
+          </div>
+        </form>
+      </div>
     </section>
 
     <section id="ordersTab" class="panel tab" hidden>
