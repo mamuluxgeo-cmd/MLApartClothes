@@ -29,19 +29,21 @@
       <form id="productForm" class="form">
         <h2>პროდუქტის დამატება</h2>
         <div class="split">
-          <input name="Code" placeholder="კოდი შენით მიუთითე *" required>
-          <select name="PositionID" id="adminPosition" required></select>
+          <input name="Code" placeholder="პროდუქტის კოდი *" required>
+          <select name="PositionID" id="adminPosition" required>
+            <option value="" selected disabled>აირჩიე პოზიცია *</option>
+          </select>
         </div>
         <div class="split">
-          <input name="NameKA" placeholder="დასახელება ქართულად *" required>
-          <input name="NameEN" placeholder="Name English">
+          <input name="NameKA" placeholder="პროდუქტის სახელი ქართულად *" required>
+          <input name="NameEN" placeholder="Product name English">
         </div>
-        <input name="NameRU" placeholder="Название русский">
+        <input name="NameRU" placeholder="Название товара">
         <div class="split">
           <input name="OldPrice" type="number" placeholder="ძველი ფასი, თუ აქვს">
           <input name="Price" type="number" placeholder="ახალი ფასი *" required>
         </div>
-        <textarea name="DescriptionKA" placeholder="აღწერა ქართულად"></textarea>
+        <textarea name="DescriptionKA" placeholder="პროდუქტის აღწერა ქართულად"></textarea>
 
         <label>ფოტოები, პირველი ატვირთული იქნება მთავარი ფოტო</label>
         <input id="photoInput" type="file" accept="image/*" multiple required>
@@ -61,9 +63,10 @@
       <div class="split">
         <form id="positionForm" class="form">
           <h2>პოზიციის დამატება</h2>
-          <input name="NameKA" placeholder="მაგ: მაისური ქართულად *" required>
-          <input name="NameEN" placeholder="მაგ: T-shirt ინგლისურად">
-          <input name="NameRU" placeholder="მაგ: Футболка რუსულად">
+          <p class="code">აქ პოზიციას ერთხელ დაამატებ სამ ენაზე. პროდუქტის დამატებისას მერე მხოლოდ ჩამონათვალიდან აირჩევ.</p>
+          <input name="NameKA" placeholder="პოზიცია ქართულად, მაგ: მაისური *" required>
+          <input name="NameEN" placeholder="Position English, e.g. T-shirt">
+          <input name="NameRU" placeholder="Позиция русский, напр: Футболка">
           <button>პოზიციის შენახვა</button>
         </form>
         <div>
