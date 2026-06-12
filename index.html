@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ML Apart Clothes</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Hotel Boutique Store</p>
+      <h1>შეუკვეთე პროდუქცია ნომერში</h1>
+      <p>აირჩიე სასურველი პროდუქტი, ზომა და მიღების დრო.</p>
+    </div>
+    <div class="lang">
+      <button data-lang="ka" class="active">KA</button>
+      <button data-lang="en">EN</button>
+      <button data-lang="ru">RU</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="content-card">
+      <div class="toolbar">
+        <input id="searchInput" placeholder="ძებნა კოდით ან სახელით">
+        <select id="positionFilter"><option value="">ყველა პოზიცია</option></select>
+      </div>
+      <div id="products" class="grid"></div>
+    </section>
+
+    <aside class="cart-panel">
+      <h2>კალათა</h2>
+      <div id="cartItems" class="cart-items empty">კალათა ცარიელია</div>
+      <div class="cart-total"><span>ჯამი</span><b id="cartTotal">0₾</b></div>
+      <form id="orderForm" class="form">
+        <input name="customerName" placeholder="სახელი გვარი *" required>
+        <input name="phone" placeholder="ტელეფონი *" required>
+        <input name="roomNumber" placeholder="ოთახის ნომერი თუ ჩვენთან ისვენებთ">
+        <input name="deliveryTime" type="datetime-local" required>
+        <textarea name="note" placeholder="შენიშვნა"></textarea>
+        <button type="submit">გამოწერა</button>
+      </form>
+      <div class="wish-box">
+        <h3>რა პროდუქციას ისურვებდით?</h3>
+        <form id="wishForm" class="form">
+          <input name="customerName" placeholder="სახელი">
+          <input name="phone" placeholder="ტელეფონი">
+          <input name="roomNumber" placeholder="ოთახი">
+          <textarea name="message" placeholder="დაწერეთ რა გსურთ" required></textarea>
+          <button type="submit" class="secondary">გაგზავნა</button>
+        </form>
+      </div>
+    </aside>
+  </main>
+
+  <div id="lightbox" class="lightbox hidden"><button id="closeLightbox">×</button><img id="lightboxImg"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
